@@ -1,0 +1,109 @@
+name: cloud-finops-env
+version: "1.0.0"
+
+description: >
+  OpenEnv environment simulating cloud FinOps cost optimization for NovaCart,
+  a fictional mid-size e-commerce platform. The agent plays the role of an
+  automated DevOps/FinOps engineer that must cut cloud waste without causing
+  production downtime. Three tasks of increasing difficulty cover orphan
+  cleanup, safe resource rightsizing with traps, and multi-region traffic
+  migration with 5 honeypot traps.
+
+domain: cloud-infrastructure
+tags:
+  - finops
+  - cloud
+  - devops
+  - cost-optimization
+  - real-world
+  - multi-region
+  - sequential-decisions
+  - honeypot-traps
+
+observation_space:
+  type: structured
+  description: >
+    JSON object containing: task_id, step, max_steps, monthly_bill_start,
+    monthly_bill_current, savings_target, savings_achieved, uptime_percent,
+    downtime_events, regions, traffic_migrated_from, connections_drained,
+    honeypot_hits, sequence_violations, feedback, and a list of resources.
+    Each resource exposes id, name, resource_type, status, region,
+    monthly_cost, cpu_avg_24h, ram_avg_24h, traffic_per_hour,
+    queries_per_hour, attached_to, dependency_of, storage_tier,
+    last_accessed_days_ago, size_gb, instance_size, tags.
+    Hidden fields (safe_to_terminate, is_production, peak_cpu_2am,
+    peak_queries_2am) are never exposed to the agent.
+
+action_space:
+  type: discrete-structured
+  actions:
+    - name: terminate
+      description: Permanently delete a resource (saves full monthly_cost).
+      required: [resource_id]
+    - name: resize
+      description: Downgrade a VM or database instance size (saves partial cost).
+      required: [resource_id, new_size]
+      values:
+        new_size: [nano, micro, small, medium, large, xlarge]
+    - name: migrate_storage
+      description: Move a volume to cold storage tier (saves 80% of monthly_cost).
+      required: [resource_id, target_tier]
+      values:
+        target_tier: [cold]
+    - name: migrate_traffic
+      description: "Task 3: redirect live traffic away from a region before shutdown."
+      required: [source_region]
+      values:
+        source_region: [us-east-1]
+    - name: wait
+      description: "Task 3: drain connections after migrate_traffic."
+      required: []
+
+reward:
+  type: dense
+  description: >
+    Dense reward signal proportional to dollars saved. Large negative penalties
+    for downtime events, honeypot hits, and sequence violations.
+
+tasks:
+  - id: task_1
+    name: "Orphan Cleanup"
+    difficulty: easy
+    max_steps: 15
+    savings_target: 705.0
+    description: >
+      20 resources in us-east-1. Find and delete 8 orphaned resources.
+
+  - id: task_2
+    name: "Rightsizing & Cold Migration"
+    difficulty: medium
+    max_steps: 18
+    savings_target: 3500.0
+    description: >
+      20 resources with traps. Resize oversized VMs and cold-migrate stale storage.
+      Two trap resources test whether the agent checks dependencies and batch schedules.
+
+  - id: task_3
+    name: "Multi-Region Failover — 5 Honeypots"
+    difficulty: hard
+    max_steps: 35
+    savings_target: 10000.0
+    description: >
+      44 resources across 2 regions. Shut down legacy us-east-1 region via
+      mandatory migrate→wait→terminate sequence. 5 honeypot traps in us-west-2.
+
+endpoints:
+  health: GET /
+  reset: POST /reset
+  step: POST /step
+  state: GET /state
+  tasks: GET /tasks
+  grader: POST /grader
+  baseline: POST /baseline
+
+runtime:
+  port: 7860
+  sdk: docker
+  language: python
+  framework: fastapi
+  python_version: "3.11"
